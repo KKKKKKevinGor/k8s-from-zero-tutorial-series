@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-SG">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K8s 从 0 到 1 · 集群引导与业务部署</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1628;--bg-2:#0d1c33;
+    --grid:rgba(80,160,220,0.07);--grid-strong:rgba(80,160,220,0.14);
+    --ink:#dce8f5;--ink-dim:#7e96b3;
+    --cyan:#3dd6f5;--k8s:#5b8def;--k8s-bright:#74a3ff;
+    --amber:#ffb454;--green:#52e0a0;--red:#ff6b81;--purple:#b58cff;
+    --line:rgba(91,141,239,0.25);--card:rgba(13,28,51,0.7);
+    --mono:'JetBrains Mono',monospace;--disp:'Chakra Petch',sans-serif;--body:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+      linear-gradient(var(--grid-strong) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid-strong) 1px,transparent 1px),
+      radial-gradient(ellipse 80% 50% at 50% -10%,rgba(91,141,239,0.18),transparent);
+    background-size:25px 25px,25px 25px,125px 125px,125px 125px,100% 100%;
+    color:var(--ink);font-family:var(--body);line-height:1.7;font-weight:300;overflow-x:hidden;
+  }
+  ::selection{background:var(--cyan);color:var(--bg)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+
+  header.hero{position:relative;padding:90px 0 56px;border-bottom:1px solid var(--line);overflow:hidden}
+  .blueprint-stamp{position:absolute;top:40px;right:28px;font-family:var(--mono);font-size:11px;
+    letter-spacing:2px;color:var(--ink-dim);text-align:right;line-height:1.8;
+    border:1px solid var(--line);padding:10px 14px;border-radius:4px;background:var(--card)}
+  .blueprint-stamp b{color:var(--cyan);font-weight:500}
+  .eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:4px;color:var(--cyan);
+    text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:12px}
+  .eyebrow::before{content:"";width:40px;height:1px;background:var(--cyan)}
+  h1{font-family:var(--disp);font-weight:700;font-size:clamp(36px,5.5vw,66px);line-height:1.04;
+    letter-spacing:-1px;color:#fff;margin-bottom:22px}
+  h1 .em{color:var(--k8s-bright)}
+  .lead{font-size:19px;max-width:660px;color:var(--ink-dim);font-weight:300}
+  .lead b{color:var(--ink);font-weight:500}
+  .prev-link{display:inline-flex;align-items:center;gap:8px;margin-top:30px;font-family:var(--mono);
+    font-size:12px;color:var(--ink-dim);border:1px solid var(--line);padding:8px 14px;border-radius:30px;
+    text-decoration:none;background:var(--card);transition:.2s}
+  .prev-link:hover{border-color:var(--cyan);color:var(--cyan)}
+
+  /* progress rail */
+  .rail{display:flex;gap:0;margin-top:34px;flex-wrap:wrap}
+  .rail .step{font-family:var(--mono);font-size:12px;padding:8px 16px;border:1px solid var(--line);
+    color:var(--ink-dim);background:var(--card)}
+  .rail .step:first-child{border-radius:30px 0 0 30px}
+  .rail .step:last-child{border-radius:0 30px 30px 0}
+  .rail .step.done{color:var(--green);border-color:rgba(82,224,160,0.4)}
+  .rail .step.now{color:var(--bg);background:var(--cyan);border-color:var(--cyan);font-weight:700}
+
+  section{padding:66px 0;border-bottom:1px solid var(--line);position:relative}
+  .sec-no{font-family:var(--mono);font-size:13px;color:var(--cyan);letter-spacing:3px;margin-bottom:10px;display:block}
+  h2{font-family:var(--disp);font-weight:600;font-size:clamp(26px,4vw,40px);color:#fff;margin-bottom:18px;letter-spacing:-.5px;line-height:1.1}
+  h3{font-family:var(--disp);font-weight:600;font-size:21px;color:var(--cyan);margin:36px 0 14px}
+  h4{font-family:var(--disp);font-weight:500;font-size:16px;color:var(--k8s-bright);margin:24px 0 10px;letter-spacing:.5px}
+  p{margin-bottom:16px;color:var(--ink-dim)}
+  p strong,li strong{color:var(--ink);font-weight:500}
+  a{color:var(--cyan)}
+
+  /* numbered flow */
+  .flow{counter-reset:fc;margin:26px 0}
+  .fstep{position:relative;padding:0 0 28px 56px;border-left:1px dashed var(--line);margin-left:18px}
+  .fstep:last-child{border-left:1px solid transparent}
+  .fstep::before{counter-increment:fc;content:counter(fc);position:absolute;left:-18px;top:-4px;
+    width:36px;height:36px;border-radius:50%;background:var(--bg-2);border:1px solid var(--cyan);
+    color:var(--cyan);font-family:var(--mono);font-weight:700;display:grid;place-items:center;font-size:14px}
+  .fstep h4{margin-top:0;color:#fff;font-size:17px}
+
+  pre{background:#06101f;border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:8px;
+    padding:20px 22px;overflow-x:auto;margin:16px 0;font-family:var(--mono);font-size:13px;line-height:1.75;
+    color:#c5d6ea;position:relative}
+  pre .c{color:#5a7290;font-style:italic}
+  pre .k{color:var(--amber)}
+  pre .s{color:var(--green)}
+  pre .f{color:var(--k8s-bright)}
+  pre .o{color:var(--purple)}
+  pre::before{content:attr(data-tag);position:absolute;top:0;right:0;font-size:10px;letter-spacing:2px;
+    color:var(--bg);background:var(--ink-dim);padding:2px 9px;border-radius:0 6px 0 8px}
+  code.inline{font-family:var(--mono);font-size:.88em;background:rgba(91,141,239,0.13);padding:2px 7px;border-radius:4px;color:var(--cyan)}
+
+  .note{border-radius:8px;padding:16px 20px;margin:20px 0;font-size:14.5px;border:1px solid;display:flex;gap:14px;align-items:flex-start}
+  .note .ic{font-family:var(--mono);font-weight:700;font-size:13px;flex-shrink:0;width:26px;height:26px;
+    border-radius:6px;display:grid;place-items:center;margin-top:2px}
+  .note.warn{border-color:rgba(255,107,129,0.4);background:rgba(255,107,129,0.07)}
+  .note.warn .ic{background:var(--red);color:var(--bg)}
+  .note.tip{border-color:rgba(82,224,160,0.35);background:rgba(82,224,160,0.06)}
+  .note.tip .ic{background:var(--green);color:var(--bg)}
+  .note.info{border-color:rgba(61,214,245,0.35);background:rgba(61,214,245,0.06)}
+  .note.info .ic{background:var(--cyan);color:var(--bg)}
+  .note p{margin:0;color:var(--ink)}
+  .note b{color:#fff}
+
+  .tbl-scroll{overflow-x:auto;margin:22px 0;border:1px solid var(--line);border-radius:10px}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px;min-width:560px}
+  th{background:rgba(91,141,239,0.12);color:var(--cyan);text-align:left;padding:13px 16px;font-weight:500;
+    letter-spacing:1px;font-size:12px;border-bottom:1px solid var(--line);text-transform:uppercase}
+  td{padding:12px 16px;border-bottom:1px solid rgba(91,141,239,0.1);color:var(--ink-dim)}
+  tr:last-child td{border-bottom:none}
+  td b{color:var(--ink);font-weight:500}
+  td .err{color:var(--red)}
+  td .ok{color:var(--green)}
+  tr:hover td{background:rgba(91,141,239,0.04)}
+
+  ul.std{margin:14px 0 20px;padding-left:0;list-style:none}
+  ul.std li{padding:7px 0 7px 26px;position:relative;color:var(--ink-dim)}
+  ul.std li::before{content:"▸";position:absolute;left:6px;color:var(--cyan)}
+
+  /* request-flow diagram */
+  .diagram{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:30px 20px;margin:30px 0;overflow-x:auto}
+  .diagram svg{display:block;margin:0 auto;min-width:680px}
+
+  footer{padding:50px 0 70px;text-align:center;color:var(--ink-dim);font-family:var(--mono);font-size:12px;letter-spacing:1px}
+  footer .pulse{color:var(--green)}
+
+  .reveal{opacity:0;transform:translateY(24px);transition:.7s cubic-bezier(.2,.8,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media(max-width:600px){.blueprint-stamp{display:none}section{padding:48px 0}.fstep{padding-left:46px}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="blueprint-stamp">
+      DRAWING&nbsp;&nbsp;<b>K8S-NET-002</b><br>
+      PART&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>2 / BOOT+APP</b><br>
+      REV&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>2026.06</b>
+    </div>
+    <div class="eyebrow">从 0 到 1 搭建 Kubernetes · 续篇</div>
+    <h1>引导集群<span class="em">·</span><br>部署第一个<span class="em">业务服务</span></h1>
+    <p class="lead">地基（节点+网络）已规划好。本篇承接同一个<b>电商订单·支付平台</b>，
+    走完<b>第二步 kubeadm init / join</b> 把四台机拼成一个集群，再走<b>第三步</b>把订单服务
+    用 <b>Deployment + Service + Ingress</b> 跑起来、对外可访问、能弹性扩缩容。</p>
+    <a class="prev-link" href="k8s-setup-guide.html">← 回看 Part 1 · 节点与网络规划</a>
+    <div class="rail">
+      <span class="step done">① 规划节点与网络 ✓</span>
+      <span class="step now">② init / join</span>
+      <span class="step now">③ Deploy / Svc / Ingress</span>
+      <span class="step">④ 监控与日志</span>
+    </div>
+  </div>
+</header>
+
+<!-- ========== STEP 2 ========== -->
+<section id="boot">
+  <div class="wrap reveal">
+    <span class="sec-no">02 / 引导集群</span>
+    <h2>第二步：kubeadm init / join<br>把四台机拼成一个集群</h2>
+    <p>第一步那张《规划表》在这里全部兑现：规划的 IP、Pod CIDR、Service CIDR、containerd —— 这一步只是把它们"喂"给 kubeadm。
+    流程分三段：<strong>全节点装工具 → Master 初始化 → Worker 加入</strong>。</p>
+
+    <h3>段 A · 三台 + Master 全节点都装 kubeadm/kubelet/kubectl</h3>
+    <pre data-tag="ALL NODES · bash"><span class="c"># 添加 K8s 官方 apt 源（注意 v1.30 这个版本号按需替换）</span>
+<span class="k">curl</span> -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key <span class="f">|</span> \
+  gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+<span class="k">echo</span> <span class="s">'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /'</span> \
+  <span class="f">&gt;</span> /etc/apt/sources.list.d/kubernetes.list
+
+<span class="k">apt update</span> <span class="f">&amp;&amp;</span> <span class="k">apt install</span> -y kubelet kubeadm kubectl
+<span class="k">apt-mark hold</span> kubelet kubeadm kubectl   <span class="c"># 锁版本，防 apt upgrade 把集群升挂</span>
+<span class="k">systemctl</span> enable kubelet</pre>
+    <div class="note warn"><span class="ic">!</span>
+      <p><b>三大组件别搞混：</b><code class="inline" style="color:#fff">kubeadm</code>=引导集群的工具（只在装/升级时用）；
+      <code class="inline" style="color:#fff">kubelet</code>=每个节点上的常驻代理（管 Pod 生命周期，全节点都要跑）；
+      <code class="inline" style="color:#fff">kubectl</code>=你敲命令的客户端（其实只需装在你操作的机器上）。</p>
+    </div>
+
+    <h3>段 B · Master 初始化控制平面</h3>
+    <div class="flow">
+      <div class="fstep">
+        <h4>执行 kubeadm init（参数全来自第一步规划）</h4>
+        <pre data-tag="MASTER · bash"><span class="k">kubeadm init</span> <span class="f">\</span>
+  <span class="f">--apiserver-advertise-address</span>=<span class="s">10.10.0.10</span> <span class="f">\</span>
+  <span class="f">--pod-network-cidr</span>=<span class="s">172.16.0.0/16</span> <span class="f">\</span>
+  <span class="f">--service-cidr</span>=<span class="s">10.96.0.0/12</span> <span class="f">\</span>
+  <span class="f">--control-plane-endpoint</span>=<span class="s">10.10.0.10</span>   <span class="c"># 留好将来扩 3 Master 的入口</span></pre>
+        <p>成功后屏幕末尾会打印<strong>两段关键内容</strong>：①配置 kubeconfig 的命令；②给 Worker 用的 <code class="inline">kubeadm join</code> 命令（含 token）。<strong>把 join 那行复制存好。</strong></p>
+      </div>
+      <div class="fstep">
+        <h4>配置 kubectl 凭证（否则 kubectl 连不上）</h4>
+        <pre data-tag="MASTER · bash"><span class="k">mkdir</span> -p $HOME/.kube
+<span class="k">cp</span> -i /etc/kubernetes/admin.conf $HOME/.kube/config
+<span class="k">chown</span> $(id -u):$(id -g) $HOME/.kube/config</pre>
+      </div>
+      <div class="fstep">
+        <h4>装 CNI（Part 1 已详解 Calico，这里一行带过）</h4>
+        <p>此刻 <code class="inline">kubectl get nodes</code> 看到 Master 是 <span style="color:var(--red)">NotReady</span> —— 正常，因为还没网络插件。装上 Calico 后变 Ready：</p>
+        <pre data-tag="MASTER · bash"><span class="k">kubectl create</span> -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
+<span class="k">kubectl apply</span> -f custom-resources.yaml   <span class="c"># cidr: 172.16.0.0/16 见 Part 1</span></pre>
+      </div>
+    </div>
+
+    <h3>段 C · 三台 Worker 加入集群</h3>
+    <p>在<strong>每台 Worker</strong> 上执行 Master 打印的那行 join（需 root）：</p>
+    <pre data-tag="WORKER ×3 · bash"><span class="k">kubeadm join</span> 10.10.0.10:6443 <span class="f">\</span>
+  <span class="f">--token</span> <span class="s">abcdef.0123456789abcdef</span> <span class="f">\</span>
+  <span class="f">--discovery-token-ca-cert-hash</span> <span class="s">sha256:1234...ef</span></pre>
+    <div class="note tip"><span class="ic">✓</span>
+      <p><b>token 找不到了 / 过期了（默认 24h）？</b> 不用重装，在 Master 上一条命令重新生成完整 join 串：</p>
+    </div>
+    <pre data-tag="MASTER · bash"><span class="k">kubeadm token create</span> --print-join-command
+<span class="c"># 直接吐出一整行可粘贴的 kubeadm join ... 命令</span></pre>
+
+    <h4>验证：四个节点全 Ready</h4>
+    <pre data-tag="MASTER · bash"><span class="k">kubectl get nodes</span> -o wide
+<span class="c"># NAME            STATUS   ROLES           VERSION   INTERNAL-IP</span>
+<span class="c"># k8s-master-01   Ready    control-plane   v1.30.x   10.10.0.10</span>
+<span class="c"># k8s-node-01     Ready    &lt;none&gt;          v1.30.x   10.10.0.11</span>
+<span class="c"># k8s-node-02     Ready    &lt;none&gt;          v1.30.x   10.10.0.12</span>
+<span class="c"># k8s-node-03     Ready    &lt;none&gt;          v1.30.x   10.10.0.13</span></pre>
+
+    <h4>kubeadm 常见报错速查</h4>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>现象</th><th>根因</th><th>解法</th></tr></thead>
+        <tbody>
+          <tr><td><span class="err">init 卡在 wait control plane</span></td><td>6443 被防火墙挡 / containerd 没起</td><td>查端口放通 + <b>systemctl status containerd</b></td></tr>
+          <tr><td><span class="err">节点一直 NotReady</span></td><td>CNI 没装</td><td>装 Calico，等 calico Pod Running</td></tr>
+          <tr><td><span class="err">join 报 cgroup driver 不一致</span></td><td>containerd 没设 SystemdCgroup</td><td>回 Part 1 段⑥改 true 重启</td></tr>
+          <tr><td><span class="err">kubelet 起不来</span></td><td>swap 没关</td><td><b>swapoff -a</b> + 改 fstab</td></tr>
+          <tr><td><span class="err">join token 无效</span></td><td>token 过期(24h)</td><td><b>kubeadm token create --print-join-command</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note info"><span class="ic">i</span>
+      <p><b>重来不要怕：</b>任何节点装坏了，<code class="inline" style="color:#fff">kubeadm reset -f</code> 即可清空该节点回到干净状态，再重新 init/join。这是 kubeadm 相比手工二进制部署最大的好处——可重复、可回退。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== STEP 3 ========== -->
+<section id="deploy">
+  <div class="wrap reveal">
+    <span class="sec-no">03 / 部署业务</span>
+    <h2>第三步：部署订单服务<br>Deployment · Service · Ingress</h2>
+    <p>集群活了，现在把<strong>订单服务</strong>跑上去。这三个对象各管一件事，缺一不可：</p>
+    <ul class="std">
+      <li><strong>Deployment</strong> —— 管 Pod 的"多少个副本 + 怎么滚动更新 + 挂了自愈"</li>
+      <li><strong>Service</strong> —— 给一组会漂移的 Pod 一个<strong>稳定的虚拟 IP/DNS 名</strong>，并做负载均衡</li>
+      <li><strong>Ingress</strong> —— 七层域名路由，把集群外的 <code class="inline">order.shop.com</code> 流量导进来</li>
+    </ul>
+
+    <!-- request flow diagram -->
+    <div class="diagram">
+      <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+        <defs><marker id="a" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3dd6f5"/></marker></defs>
+        <text x="55" y="40" fill="#fff" font-size="12" text-anchor="middle">用户</text>
+        <text x="55" y="56" fill="#7e96b3" font-size="9" text-anchor="middle">浏览器</text>
+        <rect x="20" y="65" width="70" height="40" rx="6" fill="rgba(255,180,84,0.12)" stroke="#ffb454"/>
+        <text x="55" y="90" fill="#ffb454" font-size="10" text-anchor="middle">公网</text>
+
+        <rect x="150" y="60" width="120" height="50" rx="6" fill="rgba(181,140,255,0.12)" stroke="#b58cff"/>
+        <text x="210" y="80" fill="#b58cff" font-size="11" text-anchor="middle" font-weight="700">Ingress</text>
+        <text x="210" y="96" fill="#dce8f5" font-size="8.5" text-anchor="middle">order.shop.com</text>
+
+        <rect x="330" y="60" width="120" height="50" rx="6" fill="rgba(255,180,84,0.12)" stroke="#ffb454"/>
+        <text x="390" y="80" fill="#ffb454" font-size="11" text-anchor="middle" font-weight="700">Service</text>
+        <text x="390" y="96" fill="#dce8f5" font-size="8.5" text-anchor="middle">ClusterIP 10.96.x</text>
+
+        <rect x="510" y="20" width="180" height="190" rx="8" fill="none" stroke="#5b8def" stroke-dasharray="4 3"/>
+        <text x="600" y="40" fill="#74a3ff" font-size="10" text-anchor="middle">Deployment (3 副本)</text>
+        <rect x="525" y="55" width="150" height="34" rx="5" fill="rgba(82,224,160,0.1)" stroke="#52e0a0"/>
+        <text x="600" y="76" fill="#52e0a0" font-size="9" text-anchor="middle">order Pod · 172.16.1.5</text>
+        <rect x="525" y="100" width="150" height="34" rx="5" fill="rgba(82,224,160,0.1)" stroke="#52e0a0"/>
+        <text x="600" y="121" fill="#52e0a0" font-size="9" text-anchor="middle">order Pod · 172.16.2.7</text>
+        <rect x="525" y="145" width="150" height="34" rx="5" fill="rgba(82,224,160,0.1)" stroke="#52e0a0"/>
+        <text x="600" y="166" fill="#52e0a0" font-size="9" text-anchor="middle">order Pod · 172.16.3.9</text>
+
+        <line x1="90" y1="85" x2="148" y2="85" stroke="#3dd6f5" stroke-width="1.5" marker-end="url(#a)"/>
+        <line x1="270" y1="85" x2="328" y2="85" stroke="#3dd6f5" stroke-width="1.5" marker-end="url(#a)"/>
+        <line x1="450" y1="80" x2="523" y2="72" stroke="#3dd6f5" stroke-width="1" marker-end="url(#a)"/>
+        <line x1="450" y1="90" x2="523" y2="117" stroke="#3dd6f5" stroke-width="1" opacity="0.6" marker-end="url(#a)"/>
+        <line x1="450" y1="98" x2="523" y2="162" stroke="#3dd6f5" stroke-width="1" opacity="0.4" marker-end="url(#a)"/>
+        <text x="360" y="150" fill="#7e96b3" font-size="9" text-anchor="middle">Service 负载均衡到 3 个 Pod，Pod 漂移/扩缩对外无感</text>
+      </svg>
+    </div>
+
+    <h3>① Namespace · 先把交易域隔出来</h3>
+    <pre data-tag="trade-ns.yaml"><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Namespace
+<span class="k">metadata</span>:
+  <span class="k">name</span>: <span class="s">trade</span>   <span class="c"># 订单/支付/库存都放这个命名空间，便于配额与策略</span></pre>
+
+    <h3>② Deployment · 订单服务（生产配置，逐项有注释）</h3>
+    <pre data-tag="order-deploy.yaml"><span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order
+  <span class="k">namespace</span>: trade
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: <span class="s">3</span>                        <span class="c"># 起步 3 副本，跨节点分布抗单机故障</span>
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: {<span class="k">app</span>: <span class="s">order</span>}
+  <span class="k">strategy</span>:
+    <span class="k">type</span>: <span class="s">RollingUpdate</span>          <span class="c"># 滚动发布，零停机</span>
+    <span class="k">rollingUpdate</span>: {<span class="k">maxSurge</span>: <span class="s">1</span>, <span class="k">maxUnavailable</span>: <span class="s">0</span>}
+  <span class="k">template</span>:
+    <span class="k">metadata</span>:
+      <span class="k">labels</span>: {<span class="k">app</span>: <span class="s">order</span>}   <span class="c"># ← Service 和 NetworkPolicy 靠这个 label 选中</span>
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+      - <span class="k">name</span>: order
+        <span class="k">image</span>: <span class="s">registry.shop.com/order:v1.4.2</span>  <span class="c"># 用私有仓库+确定 tag，禁用 latest</span>
+        <span class="k">ports</span>: [{<span class="k">containerPort</span>: <span class="s">8080</span>}]
+        <span class="k">resources</span>:                       <span class="c"># requests/limits 是调度和稳定性的命脉</span>
+          <span class="k">requests</span>: {<span class="k">cpu</span>: <span class="s">250m</span>, <span class="k">memory</span>: <span class="s">256Mi</span>}
+          <span class="k">limits</span>:   {<span class="k">cpu</span>: <span class="s">1</span>,    <span class="k">memory</span>: <span class="s">512Mi</span>}
+        <span class="k">readinessProbe</span>:                  <span class="c"># 没就绪不接流量（保护发布期用户）</span>
+          <span class="k">httpGet</span>: {<span class="k">path</span>: <span class="s">/healthz</span>, <span class="k">port</span>: <span class="s">8080</span>}
+          <span class="k">initialDelaySeconds</span>: <span class="s">5</span>
+        <span class="k">livenessProbe</span>:                   <span class="c"># 卡死自动重启（自愈）</span>
+          <span class="k">httpGet</span>: {<span class="k">path</span>: <span class="s">/healthz</span>, <span class="k">port</span>: <span class="s">8080</span>}
+          <span class="k">initialDelaySeconds</span>: <span class="s">15</span></pre>
+    <div class="note tip"><span class="ic">✓</span>
+      <p><b>生产细节——三件最容易漏但最致命的：</b>
+      ①<b>resources.requests</b> 决定调度（不写调度器以为 Pod 不耗资源，超卖把节点压垮）；
+      ②<b>readinessProbe</b> 没配，滚动发布时新 Pod 还没启动完就被打流量 → 用户报错；
+      ③镜像用 <b>固定 tag</b> 不用 <code class="inline" style="color:#fff">latest</code>，否则回滚时根本不知道回到哪个版本。</p>
+    </div>
+
+    <h3>③ Service · 给订单 Pod 一个稳定入口</h3>
+    <pre data-tag="order-svc.yaml"><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order
+  <span class="k">namespace</span>: trade
+<span class="k">spec</span>:
+  <span class="k">type</span>: <span class="s">ClusterIP</span>        <span class="c"># 集群内访问；对外暴露交给 Ingress，不要滥用 NodePort</span>
+  <span class="k">selector</span>:
+    <span class="k">app</span>: <span class="s">order</span>          <span class="c"># 选中所有带 app=order 的 Pod 做后端</span>
+  <span class="k">ports</span>:
+  - {<span class="k">port</span>: <span class="s">80</span>, <span class="k">targetPort</span>: <span class="s">8080</span>}</pre>
+    <p>之后<strong>支付服务在集群内只需访问 <code class="inline">http://order.trade.svc.cluster.local</code></strong>，
+    Pod 怎么扩缩、IP 怎么漂移都跟调用方无关——这就是 Service 解耦的价值。</p>
+
+    <h3>④ Ingress · 让外网用域名访问</h3>
+    <h4>前置：先装一个 Ingress Controller（如 ingress-nginx）</h4>
+    <p>Ingress 只是"路由规则"，真正干活的是 Ingress Controller。先装它：</p>
+    <pre data-tag="MASTER · bash"><span class="k">kubectl apply</span> -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.0/deploy/static/provider/baremetal/deploy.yaml</pre>
+    <pre data-tag="order-ingress.yaml"><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order
+  <span class="k">namespace</span>: trade
+  <span class="k">annotations</span>:
+    <span class="k">nginx.ingress.kubernetes.io/rewrite-target</span>: <span class="s">/</span>
+<span class="k">spec</span>:
+  <span class="k">ingressClassName</span>: <span class="s">nginx</span>
+  <span class="k">rules</span>:
+  - <span class="k">host</span>: <span class="s">order.shop.com</span>      <span class="c"># 把这个域名解析到 Ingress 节点</span>
+    <span class="k">http</span>:
+      <span class="k">paths</span>:
+      - <span class="k">path</span>: <span class="s">/</span>
+        <span class="k">pathType</span>: <span class="s">Prefix</span>
+        <span class="k">backend</span>:
+          <span class="k">service</span>:
+            <span class="k">name</span>: <span class="s">order</span>          <span class="c"># 指回上面那个 Service</span>
+            <span class="k">port</span>: {<span class="k">number</span>: <span class="s">80</span>}</pre>
+
+    <h3>⑤ 应用 + 验证</h3>
+    <pre data-tag="MASTER · bash"><span class="k">kubectl apply</span> -f trade-ns.yaml -f order-deploy.yaml -f order-svc.yaml -f order-ingress.yaml
+
+<span class="k">kubectl get pods</span> -n trade -o wide   <span class="c"># 3 个 order Pod 分布在不同节点</span>
+<span class="k">kubectl get svc,ingress</span> -n trade
+
+<span class="c"># 滚动发布到新版本，看零停机替换</span>
+<span class="k">kubectl set image</span> deploy/order order=<span class="o">registry.shop.com/order:v1.4.3</span> -n trade
+<span class="k">kubectl rollout status</span> deploy/order -n trade
+<span class="k">kubectl rollout undo</span>   deploy/order -n trade   <span class="c"># 一键回滚到上一个版本</span></pre>
+
+    <h3>⑥ 大促弹性：HPA 自动扩缩容</h3>
+    <p>呼应案例最初的诉求——大促流量翻 10 倍。配 HPA，让订单服务按 CPU 自动从 3 副本扩到 12：</p>
+    <pre data-tag="order-hpa.yaml"><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: {<span class="k">name</span>: order, <span class="k">namespace</span>: trade}
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: {<span class="k">apiVersion</span>: apps/v1, <span class="k">kind</span>: Deployment, <span class="k">name</span>: order}
+  <span class="k">minReplicas</span>: <span class="s">3</span>
+  <span class="k">maxReplicas</span>: <span class="s">12</span>
+  <span class="k">metrics</span>:
+  - <span class="k">type</span>: Resource
+    <span class="k">resource</span>: {<span class="k">name</span>: cpu, <span class="k">target</span>: {<span class="k">type</span>: Utilization, <span class="k">averageUtilization</span>: <span class="s">70</span>}}</pre>
+    <div class="note warn"><span class="ic">!</span>
+      <p><b>HPA 依赖 Metrics Server：</b>得先装 <code class="inline" style="color:#fff">metrics-server</code>，否则 HPA 拿不到 CPU 指标，
+      <code class="inline" style="color:#fff">kubectl get hpa</code> 的 TARGETS 列会一直显示 <code class="inline" style="color:#fff">&lt;unknown&gt;</code>。
+      另外 HPA 是按 <b>requests</b> 算利用率的——这又回到第③步"必须写 resources.requests"。</p>
+    </div>
+
+    <div class="note info"><span class="ic">i</span>
+      <p><b>到这里，从 0 到 1 的主干已通：</b>4 节点集群 + Calico 网络 + 订单服务对外可访问 + 弹性扩缩。
+      第四步是<b>可观测性</b>（Prometheus+Grafana 监控、Loki/EFK 日志），以及有状态服务（MySQL/Redis 用 StatefulSet + PV）。
+      地基稳了，这些都是水到渠成的加层。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    ⎈ K8S-NET-002 · 集群引导与业务部署 · <span class="pulse">STATUS: SERVING</span><br>
+    Part 1 规划 → Part 2 init/join + Deploy/Service/Ingress → Part 3 监控与日志（待续）
+  </div>
+</footer>
+
+<script>
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:0.08});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
