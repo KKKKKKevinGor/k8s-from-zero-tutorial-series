@@ -2,15 +2,15 @@
 
 > 自学 Kubernetes 时整理的三篇图文笔记，用同一个**电商订单·支付微服务平台**案例
 > （1 Master + 3 Worker）贯穿始终，覆盖"规划 → 部署 → 数据与可观测性"完整闭环。
-> 每篇都是独立的单文件 HTML，直接下载打开浏览器查看即可（含内嵌图解和示意图）。
+> 每篇都是独立的单文件 HTML，点"在线阅读"直接在浏览器里看渲染效果（含内嵌图解和示意图）。
 
 ## 系列目录
 
-| 篇 | 主题 | 覆盖内容 |
-|---|---|---|
-| [01 · 规划节点与网络](01-planning-and-networking.html) | 集群规划 | 节点选型、三层网段不冲突设计、CNI（Calico）选型、containerd/swap 前置检查 |
-| [02 · 引导与工作负载](02-bootstrap-and-workloads.html) | 集群搭建 | `kubeadm init/join`、Deployment / Service / Ingress、HPA 自动扩缩容 |
-| [03 · 有状态与可观测性](03-statefulset-and-observability.html) | 数据与监控 | StatefulSet + PV、Secret 管理、Prometheus / Grafana / Loki 全景可观测性闭环 |
+| 篇 | 主题 | 覆盖内容 | 在线阅读 |
+|---|---|---|---|
+| 01 · 规划节点与网络 | 集群规划 | 节点选型、三层网段不冲突设计、CNI（Calico）选型、containerd/swap 前置检查 | [在线阅读](https://kkkkkkevingor.github.io/k8s-from-zero-tutorial-series/01-planning-and-networking.html) |
+| 02 · 引导与工作负载 | 集群搭建 | `kubeadm init/join`、Deployment / Service / Ingress、HPA 自动扩缩容 | [在线阅读](https://kkkkkkevingor.github.io/k8s-from-zero-tutorial-series/02-bootstrap-and-workloads.html) |
+| 03 · 有状态与可观测性 | 数据与监控 | StatefulSet + PV、Secret 管理、Prometheus / Grafana / Loki 全景可观测性闭环 | [在线阅读](https://kkkkkkevingor.github.io/k8s-from-zero-tutorial-series/03-statefulset-and-observability.html) |
 
 ## 贯穿的心智模型
 
